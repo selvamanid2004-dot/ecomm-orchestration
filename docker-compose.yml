@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # 1. Database Service (MySQL 8.0)
+  mysql:
+    image: mysql:8.0
+    container_name: ecomm-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ecommerce_db
+      MYSQL_USER: ecomm_user
+      MYSQL_PASSWORD: ecomm_password
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+      - ./database/seeds/001_initial_seeds.sql:/docker-entrypoint-initdb.d/002_initial_seeds.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecomm-network
+
+  # 2. Backend REST API Service (Node.js / Express / TypeScript)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecomm-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ecomm_user
+      DB_PASSWORD: ecomm_password
+      DB_NAME: ecommerce_db
+      JWT_SECRET: prod_secure_jwt_secret_antigravity_ecomm_2026_x92a
+      REFRESH_TOKEN_SECRET: prod_secure_refresh_secret_antigravity_ecomm_2026_k48p
+      FRONTEND_ORIGIN: http://localhost,http://localhost:80,http://localhost:4200
+      ADMIN_ORIGIN: http://localhost,http://localhost:80,http://localhost:4200
+      LOG_LEVEL: info
+    ports:
+      - "5000:5000"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ecomm-network
+
+  # 3. Frontend Storefront & Admin Service (Angular 19 / Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ecomm-frontend
+    restart: always
+    ports:
+      - "80:80"
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - ecomm-network
+
+  # 4. Optional Database Management Interface (phpMyAdmin)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ecomm-phpmyadmin
+    restart: always
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 0
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ecomm-network
+
+volumes:
+  mysql_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  ecomm-network:
+    driver: bridge

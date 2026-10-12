@@ -1,0 +1,9 @@
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/selvamanid2004-dot/ecomm-frontend.git
+[submodule "backend"]
+	path = backend
+	url = https://github.com/selvamanid2004-dot/ecomm-backend.git
+[submodule "database"]
+	path = database
+	url = https://github.com/selvamanid2004-dot/ecomm-database.git
